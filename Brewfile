@@ -19,3 +19,6 @@ brew "fd"            # schnelles find
 brew "jq"            # JSON in Skripten
 brew "ast-grep"      # strukturelle Suche/Refactoring im Code
 brew "uv"            # Python-Tools und Skripte ohne venv-Gefummel
+
+# Container für den lokalen Dev-Stack
+cask "orbstack"

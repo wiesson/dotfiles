@@ -74,4 +74,33 @@ link ghostty/config "$HOME/.config/ghostty/config"
 GHOSTTY_MAC="$HOME/Library/Application Support/com.mitchellh.ghostty/config"
 if [ -f "$GHOSTTY_MAC" ] && [ ! -L "$GHOSTTY_MAC" ]; then backup "$GHOSTTY_MAC"; fi
 
+# Eigene Skripte (dev-update)
+for f in "$DOTFILES"/bin/*; do
+  link "bin/$(basename "$f")" "$HOME/.local/bin/$(basename "$f")"
+done
+
+# macOS: Tastenwiederholung fürs Terminal
+run "$DOTFILES/macos/defaults.sh"
+
+# git push über HTTPS mit dem gh-Login
+todo=()
+if command -v gh >/dev/null && gh auth status >/dev/null 2>&1; then
+  run gh auth setup-git
+else
+  todo+=("gh auth login && gh auth setup-git")
+fi
+
+# Touch ID für sudo (braucht einmal das Passwort)
+if ! grep -qs '^[^#]*pam_tid.so' /etc/pam.d/sudo_local; then
+  if [ -t 0 ] && [ -z "${DRY_RUN:-}" ]; then
+    "$DOTFILES/macos/touchid-sudo.sh" || todo+=("$DOTFILES/macos/touchid-sudo.sh")
+  else
+    todo+=("$DOTFILES/macos/touchid-sudo.sh")
+  fi
+fi
+
 echo "fertig – neues Terminal-Fenster öffnen."
+if [ ${#todo[@]} -gt 0 ]; then
+  echo "Noch von Hand ausführen (interaktiv):"
+  for t in "${todo[@]}"; do echo "  $t"; done
+fi

@@ -1,0 +1,93 @@
+#!/bin/zsh
+
+# Keep the global development toolchain current: Homebrew, Vite+/Node LTS,
+# global CLIs, agent skills, Claude Code. Project dependencies are not touched.
+
+set -u
+
+mode="update"
+case "${1:-}" in
+  "") ;;
+  --check) mode="check" ;;
+  -h|--help)
+    cat <<'EOF'
+Usage: dev-update [--check]
+
+Without arguments:
+  - upgrades Homebrew packages
+  - upgrades the global Vite+ CLI
+  - sets the Vite+ global Node.js default to the latest LTS
+  - updates Vite+-managed global packages
+  - updates globally managed agent skills
+  - updates Claude Code
+  - runs Vite+ diagnostics
+
+--check only reports Homebrew, Vite+ and global-package updates. The Skills CLI does
+not currently offer a non-mutating update check.
+EOF
+    exit 0
+    ;;
+  *)
+    print -u2 "Unknown option: $1"
+    print -u2 "Usage: dev-update [--check]"
+    exit 2
+    ;;
+esac
+
+if command -v brew >/dev/null 2>&1; then
+  has_brew=1
+else
+  has_brew=0
+fi
+
+if ! command -v vp >/dev/null 2>&1; then
+  print -u2 "dev-update: vp not found in PATH"
+  exit 127
+fi
+
+failures=0
+run_step() {
+  local title="$1"
+  shift
+  print
+  print "==> $title"
+  if ! "$@"; then
+    print -u2 "FAILED: $title"
+    (( failures += 1 ))
+  fi
+}
+
+if [[ "$mode" == "check" ]]; then
+  (( has_brew )) && run_step "Check Homebrew packages" sh -c 'brew update --quiet && brew outdated'
+  run_step "Check Vite+ CLI" vp upgrade --check
+  run_step "Check global packages" vp outdated -g
+  print
+  print "Note: skills has no check-only command; run dev-update to update them."
+else
+  (( has_brew )) && run_step "Upgrade Homebrew packages" sh -c 'brew update --quiet && brew upgrade'
+  run_step "Upgrade Vite+ CLI" vp upgrade
+  run_step "Set the global Node.js default to LTS" vp env default lts
+  run_step "Update Vite+-managed global packages" vp update -g
+
+  if command -v skills >/dev/null 2>&1; then
+    run_step "Update globally managed agent skills" skills update -g -y
+  else
+    print -u2 "SKIPPED: skills not found in PATH"
+    (( failures += 1 ))
+  fi
+
+  if command -v claude >/dev/null 2>&1; then
+    run_step "Update Claude Code" claude update
+  fi
+
+  run_step "Verify Vite+ environment" vp env doctor
+  run_step "Verify global package status" vp outdated -g
+fi
+
+print
+if (( failures > 0 )); then
+  print -u2 "dev-update completed with $failures failed step(s)."
+  exit 1
+fi
+
+print "dev-update completed successfully."
