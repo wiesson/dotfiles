@@ -1,0 +1,29 @@
+#!/bin/zsh
+# Startet einen Befehl mit dem Cloudflare-Agent-Token aus der macOS-Keychain.
+#   cf-env npx wrangler whoami
+#   cf-env npx wrangler secret put NAME --name <worker>
+# Das Token landet nur in der Umgebung des Kindprozesses, nie in Dateien.
+# Doku: ~/Dev/nordwerk/ops/cloudflare-zugang.md
+emulate -L zsh
+set -eu
+
+KEYCHAIN_SERVICE=studio-nordwerk-cloudflare-agent
+ACCOUNT_ID=8ac65df3de87d8893e61f9ac14698a91 # studio nordwerk
+
+if (( $# == 0 )); then
+  print -u2 "Aufruf: cf-env <befehl> [argumente …]"
+  exit 64
+fi
+
+token="$(/usr/bin/security find-generic-password -a arne -s "$KEYCHAIN_SERVICE" -w 2>/dev/null)" || {
+  print -u2 "cf-env: kein Token in der Keychain (Dienst $KEYCHAIN_SERVICE) – siehe ops/cloudflare-zugang.md"
+  exit 78
+}
+
+# Globale API-Keys hätten in wrangler Vorrang vor dem Token.
+unset CLOUDFLARE_API_KEY CLOUDFLARE_EMAIL CF_API_KEY CF_EMAIL
+export CLOUDFLARE_API_TOKEN="$token"
+export CLOUDFLARE_ACCOUNT_ID="$ACCOUNT_ID"
+unset token
+
+exec "$@"

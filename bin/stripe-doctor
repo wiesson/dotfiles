@@ -1,0 +1,171 @@
+#!/usr/bin/python3
+"""Prüft den Stripe-Zugang für Claude Code – nur lesend, ändert nichts.
+
+  stripe-doctor          Key, Leserechte je Bereich, MCP-Handshake, MCP-Konfiguration
+  stripe-doctor --quick  nur Keychain und MCP-Konfiguration
+
+Exit 0 = alles ok, 1 = mindestens ein Fehler, 2 = nur Warnungen.
+Der Key wird nie ausgegeben. Doku: ~/Dev/nordwerk/ops/cloudflare-zugang.md
+"""
+import json
+import os
+import subprocess
+import sys
+import urllib.error
+import urllib.request
+
+SERVICE = "studio-nordwerk-stripe-agent"
+ACCOUNT = "acct_1U8e5wKWG2F8lUCF"  # Studio Nordwerk UG
+API = "https://api.stripe.com/v1"
+MCP_URL = "https://mcp.stripe.com"
+HELPER = os.path.expanduser("~/.local/bin/stripe-mcp-headers")
+
+results = {"ok": 0, "warn": 0, "fail": 0}
+
+
+def report(level, label, detail=""):
+    results[level] += 1
+    tag = {"ok": "OK  ", "warn": "WARN", "fail": "FAIL"}[level]
+    print(f"{tag} {label}" + (f" – {detail}" if detail else ""))
+
+
+def keychain_key():
+    try:
+        out = subprocess.run(
+            ["/usr/bin/security", "find-generic-password", "-a", "arne", "-s", SERVICE, "-w"],
+            capture_output=True, text=True, timeout=10,
+        )
+    except subprocess.TimeoutExpired:
+        return None
+    return out.stdout.strip() if out.returncode == 0 and out.stdout.strip() else None
+
+
+def http(url, key, payload=None, headers=None):
+    h = {"Authorization": "Bearer " + key, "Accept": "application/json, text/event-stream",
+         "User-Agent": "stripe-doctor/1"}
+    h.update(headers or {})
+    data = None
+    if payload is not None:
+        h["Content-Type"] = "application/json"
+        data = json.dumps(payload).encode()
+    req = urllib.request.Request(url, data=data, headers=h)
+    try:
+        with urllib.request.urlopen(req, timeout=20) as resp:
+            return resp.read().decode(), resp.headers
+    except urllib.error.HTTPError as err:
+        body = err.read().decode(errors="replace")
+        try:
+            msg = json.loads(body).get("error", {}).get("message", "")
+        except ValueError:
+            msg = ""
+        raise RuntimeError(f"HTTP {err.code}" + (f" ({msg[:160]})" if msg else ""))
+
+
+def check(label, permission, fn):
+    try:
+        report("ok", label, fn() or "")
+        return True
+    except Exception as err:
+        hint = f" → Recht prüfen: {permission}" if "HTTP 401" in str(err) or "HTTP 403" in str(err) else ""
+        report("fail", label, f"{err}{hint}")
+        return False
+
+
+def check_mcp_config(key):
+    try:
+        cfg = json.load(open(os.path.expanduser("~/.claude.json")))
+    except (OSError, ValueError) as err:
+        report("fail", "MCP-Konfiguration", f"~/.claude.json nicht lesbar ({err})")
+        return
+    server = (cfg.get("mcpServers") or {}).get("stripe")
+    if not server:
+        report("fail", "MCP-Konfiguration", "kein User-Server 'stripe' in ~/.claude.json")
+        return
+    if any("authorization" == k.lower() for k in (server.get("headers") or {})):
+        report("fail", "MCP-Konfiguration", "statischer Authorization-Header in ~/.claude.json – headersHelper nutzen")
+        return
+    if server.get("headersHelper") != HELPER:
+        report("warn", "MCP-Konfiguration", "stripe nutzt noch OAuth (kein headersHelper) – siehe ops/cloudflare-zugang.md")
+        return
+    try:
+        out = subprocess.run([HELPER], capture_output=True, text=True, timeout=10)
+        headers = json.loads(out.stdout) if out.returncode == 0 else {}
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        headers = {}
+    if headers.get("Authorization") == "Bearer " + key:
+        report("ok", "MCP-Konfiguration", "headersHelper liefert den Keychain-Key")
+    else:
+        report("fail", "MCP-Konfiguration", f"{HELPER} liefert keinen passenden Authorization-Header")
+
+
+def parse_rpc(body, rpc_id):
+    text = body.strip()
+    if text.startswith("{"):
+        msg = json.loads(text)
+    else:
+        msgs = [json.loads(line[5:].strip()) for line in text.splitlines()
+                if line.startswith("data:") and line[5:].strip().startswith("{")]
+        msg = next((m for m in msgs if m.get("id") == rpc_id), {})
+    if "error" in msg or "result" not in msg:
+        raise RuntimeError(f"RPC-Fehler: {msg.get('error') or 'keine Antwort'}")
+    return msg
+
+
+def full(key):
+    def listing(path):
+        body, _ = http(f"{API}/{path}?limit=3", key)
+        return f"{len(json.loads(body).get('data', []))}+ lesbar"
+
+    for label, path, perm in [
+        ("Produkte", "products", "Products → Write"),
+        ("Preise", "prices", "Prices → Write"),
+        ("Gutscheine", "coupons", "Coupons → Write"),
+        ("Aktionscodes", "promotion_codes", "Promotion codes → Write"),
+        ("Payment Links", "payment_links", "Payment Links → Write"),
+        ("Kunden", "customers", "Customers → Write"),
+        ("Abos", "subscriptions", "Subscriptions → Write"),
+        ("Rechnungen", "invoices", "Invoices → Write"),
+        ("Dateien (Produktbilder)", "files", "Files → Write"),
+        ("Webhooks", "webhook_endpoints", "Webhook Endpoints → Write"),
+    ]:
+        check(label, perm, lambda path=path: listing(path))
+
+    def mcp():
+        body, headers = http(MCP_URL, key, {
+            "jsonrpc": "2.0", "id": 1, "method": "initialize",
+            "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                       "clientInfo": {"name": "stripe-doctor", "version": "1"}},
+        })
+        init = parse_rpc(body, 1)
+        extra = {"MCP-Protocol-Version": init["result"]["protocolVersion"]}
+        if headers.get("Mcp-Session-Id"):
+            extra["Mcp-Session-Id"] = headers["Mcp-Session-Id"]
+        http(MCP_URL, key, {"jsonrpc": "2.0", "method": "notifications/initialized"}, extra)
+        body, _ = http(MCP_URL, key, {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}, extra)
+        tools = parse_rpc(body, 2)["result"]["tools"]
+        if not tools:
+            raise RuntimeError("keine Werkzeuge")
+        return "Werkzeuge: " + ", ".join(t["name"] for t in tools)
+    check("MCP mcp.stripe.com mit Key", "Agent-Key (ab 31.10.2026 Pflicht)", mcp)
+
+
+def main():
+    quick = "--quick" in sys.argv[1:]
+    key = keychain_key()
+    if not key:
+        report("fail", "Keychain", f"kein Eintrag '{SERVICE}' – Key anlegen, siehe ops/cloudflare-zugang.md")
+        sys.exit(1)
+    if key.startswith("sk_"):
+        report("fail", "Keychain", "das ist ein geheimer Vollzugriffs-Key (sk_) – bitte eingeschränkten Agent-Key (rk_) nehmen")
+        sys.exit(1)
+    mode = "live" if key.startswith("rk_live_") else "test" if key.startswith("rk_test_") else "?"
+    report("ok" if mode == "live" else "warn", "Keychain", f"eingeschränkter Key, Modus {mode}")
+    check_mcp_config(key)
+    if not quick:
+        full(key)
+    print(f"\n{results['ok']} ok, {results['warn']} Warnungen, {results['fail']} Fehler")
+    sys.exit(1 if results["fail"] else 2 if results["warn"] else 0)
+
+
+if __name__ == "__main__":
+    main()

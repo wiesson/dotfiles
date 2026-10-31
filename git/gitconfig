@@ -1,0 +1,14 @@
+[user]
+	name = Arne Wiese
+	email = arne@wiese.me
+[pull]
+	rebase = false
+[init]
+	defaultBranch = main
+[filter "lfs"]
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+	clean = git-lfs clean -- %f
+[core]
+	autocrlf = input

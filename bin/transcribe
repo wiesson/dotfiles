@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# transcribe <audio|video> [sprache=de] – lokal, Text nach stdout
+# Standard: Parakeet TDT 0.6B v3 (parakeet-mlx, via `uv tool install parakeet-mlx`), erkennt Sprache selbst.
+# ENGINE=whisper: whisper.cpp large-v3-turbo-q5_0 (Fallback, z. B. für Sprachen außerhalb Europas; nutzt [sprache]).
+# TIMESTAMPS=1: mit Zeitmarken (SRT bzw. Whisper-Segmente).
+set -euo pipefail
+in="${1:?Datei angeben}"; lang="${2:-de}"
+tmp="$(mktemp -d)"; trap 'rm -rf "$tmp"' EXIT
+ffmpeg -loglevel error -y -i "$in" -ar 16000 -ac 1 "$tmp/a.wav"
+if [ "${ENGINE:-parakeet}" = whisper ]; then
+  model="${WHISPER_MODEL:-$HOME/.local/share/whisper-cpp/ggml-large-v3-turbo-q5_0.bin}"
+  whisper-cli -m "$model" -l "$lang" -f "$tmp/a.wav" $([ -n "${TIMESTAMPS:-}" ] || echo -nt) 2>/dev/null
+else
+  fmt=$([ -n "${TIMESTAMPS:-}" ] && echo srt || echo txt)
+  parakeet-mlx "$tmp/a.wav" --model "${PARAKEET_MODEL:-mlx-community/parakeet-tdt-0.6b-v3}" \
+    --output-dir "$tmp" --output-format "$fmt" --output-template out >/dev/null 2>&1
+  cat "$tmp/out.$fmt"; echo
+fi
