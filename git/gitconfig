@@ -1,6 +1,6 @@
-[user]
-	name = Arne Wiese
-	email = arne@wiese.me
+# Name und E-Mail pro Rechner in ~/.gitconfig.local (nicht im Repo)
+[include]
+	path = ~/.gitconfig.local
 [pull]
 	rebase = false
 [init]

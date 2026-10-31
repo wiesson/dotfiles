@@ -59,3 +59,5 @@ Später aktuell halten: `dev-update` (Homebrew, Vite+, Node LTS, globale CLIs, S
 `dev-update --check` zeigt nur an, was veraltet ist.
 
 Rechnerspezifisches gehört in `~/.zshrc.local` (wird geladen, falls vorhanden, und ist nicht im Repo).
+Ebenso die Git-Identität: Name und E-Mail stehen in `~/.gitconfig.local`, damit mehrere Leute
+dieselben Dotfiles nutzen können. Fehlt sie, nennt `install.sh` am Ende den Befehl dafür.

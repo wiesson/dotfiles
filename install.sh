@@ -107,6 +107,11 @@ else
   todo+=("gh auth login && gh auth setup-git")
 fi
 
+# Git-Identität steht pro Rechner in ~/.gitconfig.local
+if ! git config --global --includes user.email >/dev/null; then
+  todo+=("git config --file ~/.gitconfig.local user.name \"Vorname Nachname\" && git config --file ~/.gitconfig.local user.email \"du@example.com\"")
+fi
+
 # Touch ID für sudo (braucht einmal das Passwort)
 if ! grep -qs '^[^#]*pam_tid.so' /etc/pam.d/sudo_local; then
   if [ -t 0 ] && [ -z "${DRY_RUN:-}" ]; then
