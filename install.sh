@@ -53,6 +53,19 @@ if [ "${1:-}" != "--no-brew" ]; then
     echo "WARN: vp nicht verfügbar – Node und globale CLIs übersprungen" >&2
   fi
 
+  # Agent-Skills aus skills.txt (global, für die genannten Agenten)
+  SKILL_AGENTS=(claude-code codex cursor opencode zed)
+  if command -v skills >/dev/null; then
+    agent_args=(); for a in "${SKILL_AGENTS[@]}"; do agent_args+=(-a "$a"); done
+    while read -r src names; do
+      [ -z "$src" ] && continue
+      skill_args=(); for n in $names; do skill_args+=(-s "$n"); done
+      run skills add "$src" -g -y "${skill_args[@]}" "${agent_args[@]}" || echo "WARN: skills $src fehlgeschlagen" >&2
+    done < <(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$DOTFILES/skills.txt")
+  else
+    echo "WARN: skills-CLI fehlt – Skills übersprungen" >&2
+  fi
+
   if ! command -v claude >/dev/null && [ ! -x "$HOME/.local/bin/claude" ]; then
     echo "install Claude Code"
     [ -n "${DRY_RUN:-}" ] || curl -fsSL https://claude.ai/install.sh | bash

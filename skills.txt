@@ -1,0 +1,15 @@
+# Globale Agent-Skills, installiert mit der skills-CLI (vercel-labs/skills).
+# Format: <github-quelle> <skill> [<skill> …]
+# Landen in ~/.agents/skills und werden für die Agenten in SKILL_AGENTS (install.sh) verlinkt.
+# Aktualisieren: dev-update (ruft `skills update -g -y`).
+
+vercel-labs/skills         find-skills
+vercel-labs/agent-browser  agent-browser
+vercel-labs/portless       portless
+vercel-labs/emulate        resend
+vercel/chat                chat-sdk
+vercel/streamdown          streamdown
+shadcn/ui                  shadcn
+anthropics/skills          frontend-design
+cloudflare/skills          cloudflare agents-sdk durable-objects workers-best-practices wrangler web-perf cloudflare-email-service
+stripe/ai                  stripe-best-practices stripe-projects upgrade-stripe
