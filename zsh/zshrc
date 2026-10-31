@@ -270,7 +270,10 @@ export PATH="$HOME/.grok/bin:$PATH"
 # Vite+ shims win over system Node.js installations.
 path=(${path:#$HOME/.antigravity/antigravity/bin})
 path=(${path:#$HOME/.antigravity-ide/antigravity-ide/bin})
-path=("$HOME/.vite-plus/bin" ${path:#$HOME/.vite-plus/bin})
+for vp_bin in "$HOME/.vite-plus/bin" "$HOME/.local/share/vite-plus/bin"; do
+  [[ -d $vp_bin ]] && path=("$vp_bin" ${path:#$vp_bin})
+done
+unset vp_bin
 export PATH
 
 # Must load after all widgets and shell integrations.

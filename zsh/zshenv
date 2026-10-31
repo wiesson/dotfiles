@@ -1,6 +1,11 @@
 
 # Vite+ bin (https://viteplus.dev)
-[[ -r "$HOME/.vite-plus/env" ]] && . "$HOME/.vite-plus/env"
+# Ab Vite+ 1.4 unter ~/.config/vite-plus, ältere Installationen unter ~/.vite-plus.
+if [[ -r "$HOME/.config/vite-plus/env" ]]; then
+  . "$HOME/.config/vite-plus/env"
+elif [[ -r "$HOME/.vite-plus/env" ]]; then
+  . "$HOME/.vite-plus/env"
+fi
 
 # Keep the portless proxy off 80/443 so the exactag Caddy container can bind them.
 export PORTLESS_PORT=1355

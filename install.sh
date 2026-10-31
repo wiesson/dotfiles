@@ -38,11 +38,14 @@ fi
 
 # Node über Vite+ (vp), Default = aktuelle LTS, plus globale CLIs
 if [ "${1:-}" != "--no-brew" ]; then
-  if [ ! -x "$HOME/.vite-plus/bin/vp" ] && ! command -v vp >/dev/null; then
+  # Ab Vite+ 1.4 unter ~/.config/vite-plus bzw. ~/.local/share/vite-plus, vorher ~/.vite-plus
+  if [ ! -x "$HOME/.local/share/vite-plus/bin/vp" ] && [ ! -x "$HOME/.vite-plus/bin/vp" ] && ! command -v vp >/dev/null; then
     echo "install Vite+"
     [ -n "${DRY_RUN:-}" ] || curl -fsSL https://vite.plus | VP_NODE_MANAGER=yes bash
   fi
-  [ -r "$HOME/.vite-plus/env" ] && . "$HOME/.vite-plus/env"
+  for env in "$HOME/.config/vite-plus/env" "$HOME/.vite-plus/env"; do
+    if [ -r "$env" ]; then . "$env"; break; fi
+  done
   if command -v vp >/dev/null; then
     run vp env default lts
     globals=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$DOTFILES/npm-globals.txt" | xargs)
@@ -60,7 +63,8 @@ if [ "${1:-}" != "--no-brew" ]; then
     while read -r src names; do
       [ -z "$src" ] && continue
       skill_args=(); for n in $names; do skill_args+=(-s "$n"); done
-      run skills add "$src" -g -y "${skill_args[@]}" "${agent_args[@]}" || echo "WARN: skills $src fehlgeschlagen" >&2
+      # </dev/null: sonst liest skills add den Rest von skills.txt aus stdin und die Schleife endet
+      run skills add "$src" -g -y "${skill_args[@]}" "${agent_args[@]}" </dev/null || echo "WARN: skills $src fehlgeschlagen" >&2
     done < <(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$DOTFILES/skills.txt")
   else
     echo "WARN: skills-CLI fehlt – Skills übersprungen" >&2
