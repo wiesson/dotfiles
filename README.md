@@ -27,7 +27,7 @@ git clone https://github.com/wiesson/dotfiles.git ~/Dev/dotfiles
    delta und die Werkzeuge, die Coding-Agenten ständig nutzen (ripgrep, fd, jq, ast-grep, uv).
 2. **Node über Vite+** (`vp`, https://viteplus.dev), Default auf die aktuelle LTS.
 3. **Globale CLIs** aus `npm-globals.txt` über `vp install -g`: agent-browser (inkl. Chrome
-   for Testing), portless, skills, Codex.
+   for Testing), portless, skills, emulate, Codex.
 4. **Claude Code**, falls es noch fehlt.
 5. **Symlinks:**
 

@@ -2,4 +2,5 @@
 agent-browser   # Browser-Automation für Agenten
 portless        # https://<name>.localhost statt localhost:3000
 skills          # Agent-Skills verwalten (skills add <repo> -g)
+emulate         # lokale Emulatoren für APIs wie Resend (lokaler Dev-Stack)
 @openai/codex   # Codex CLI als Zweitmeinung
