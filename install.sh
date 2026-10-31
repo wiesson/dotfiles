@@ -59,11 +59,16 @@ for f in "$DOTFILES"/bin/*; do
   link "bin/$(basename "$f")" "$HOME/.local/bin/$(basename "$f")"
 done
 
-# Optionaler privater Teil (eigenes Repo, z. B. ~/.dotfiles-private/install.sh)
-PRIVATE="${DOTFILES_PRIVATE:-$HOME/.dotfiles-private}"
-if [ -x "$PRIVATE/install.sh" ]; then
+# Optionaler privater Teil: Repo dotfiles-private neben diesem oder ~/.dotfiles-private
+PRIVATE="${DOTFILES_PRIVATE:-}"
+for cand in "$DOTFILES/../dotfiles-private" "$HOME/.dotfiles-private"; do
+  [ -z "$PRIVATE" ] && [ -x "$cand/install.sh" ] && PRIVATE="$(cd "$cand" && pwd)"
+done
+if [ -n "$PRIVATE" ]; then
   echo "== privat: $PRIVATE"
-  run "$PRIVATE/install.sh"
+  BACKUP="$BACKUP" DRY_RUN="${DRY_RUN:-}" "$PRIVATE/install.sh"
+else
+  echo "== privat: nicht gefunden (optional)"
 fi
 
 if [ "${1:-}" = "--brew" ]; then

@@ -2,7 +2,15 @@
 
 macOS-Setup von Arne: zsh, Git, Ghostty, Zed, Claude-Code-Subagents und ein paar eigene Skripte.
 
-## Neuer Rechner
+## Neuer Rechner (mit Claude Code)
+
+Claude Code installieren (`curl -fsSL https://claude.ai/install.sh | bash`), einloggen, dann:
+
+> Hol meine Dotfiles von github.com/wiesson/dotfiles nach ~/Dev/dotfiles und richte den Rechner nach der CLAUDE.md im Repo ein.
+
+Der komplette Ablauf für den Agenten steht in [`CLAUDE.md`](CLAUDE.md) (für Codex & Co. als `AGENTS.md`).
+
+## Neuer Rechner (von Hand)
 
 ```sh
 # 1. Homebrew: https://brew.sh
