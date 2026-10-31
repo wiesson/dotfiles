@@ -1,0 +1,5 @@
+# Globale CLI-Pakete, installiert mit `vp install -g` (Node über Vite+).
+agent-browser   # Browser-Automation für Agenten
+portless        # https://<name>.localhost statt localhost:3000
+skills          # Agent-Skills verwalten (skills add <repo> -g)
+@openai/codex   # Codex CLI als Zweitmeinung

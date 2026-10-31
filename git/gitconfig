@@ -12,3 +12,22 @@
 	clean = git-lfs clean -- %f
 [core]
 	autocrlf = input
+	pager = delta
+[push]
+	autoSetupRemote = true
+[fetch]
+	prune = true
+[rebase]
+	autoStash = true
+[diff]
+	algorithm = histogram
+	colorMoved = default
+[merge]
+	conflictstyle = zdiff3
+[rerere]
+	enabled = true
+[interactive]
+	diffFilter = delta --color-only
+[delta]
+	navigate = true
+	side-by-side = false

@@ -36,6 +36,29 @@ if [ "${1:-}" != "--no-brew" ]; then
   run brew bundle --file "$DOTFILES/Brewfile"
 fi
 
+# Node über Vite+ (vp), Default = aktuelle LTS, plus globale CLIs
+if [ "${1:-}" != "--no-brew" ]; then
+  if [ ! -x "$HOME/.vite-plus/bin/vp" ] && ! command -v vp >/dev/null; then
+    echo "install Vite+"
+    [ -n "${DRY_RUN:-}" ] || curl -fsSL https://vite.plus | VP_NODE_MANAGER=yes bash
+  fi
+  [ -r "$HOME/.vite-plus/env" ] && . "$HOME/.vite-plus/env"
+  if command -v vp >/dev/null; then
+    run vp env default lts
+    globals=$(sed -e 's/#.*//' -e '/^[[:space:]]*$/d' "$DOTFILES/npm-globals.txt" | xargs)
+    # shellcheck disable=SC2086
+    run vp install -g $globals
+    command -v agent-browser >/dev/null && run agent-browser install   # Chrome for Testing
+  else
+    echo "WARN: vp nicht verfügbar – Node und globale CLIs übersprungen" >&2
+  fi
+
+  if ! command -v claude >/dev/null && [ ! -x "$HOME/.local/bin/claude" ]; then
+    echo "install Claude Code"
+    [ -n "${DRY_RUN:-}" ] || curl -fsSL https://claude.ai/install.sh | bash
+  fi
+fi
+
 # Shell
 link zsh/zshrc    "$HOME/.zshrc"
 link zsh/zshenv   "$HOME/.zshenv"

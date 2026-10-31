@@ -21,8 +21,15 @@ git clone https://github.com/wiesson/dotfiles.git ~/Dev/dotfiles
 
 ## Was passiert
 
-`install.sh` installiert die Pakete aus dem `Brewfile` (Ghostty, eza, fzf, zoxide,
-zsh-Plugins, gh) und verlinkt:
+`install.sh` erledigt in dieser Reihenfolge:
+
+1. **Homebrew-Pakete** aus dem `Brewfile`: Ghostty, eza, fzf, zoxide, zsh-Plugins, gh, git-lfs,
+   delta und die Werkzeuge, die Coding-Agenten ständig nutzen (ripgrep, fd, jq, ast-grep, uv).
+2. **Node über Vite+** (`vp`, https://viteplus.dev), Default auf die aktuelle LTS.
+3. **Globale CLIs** aus `npm-globals.txt` über `vp install -g`: agent-browser (inkl. Chrome
+   for Testing), portless, skills, Codex.
+4. **Claude Code**, falls es noch fehlt.
+5. **Symlinks:**
 
 | Repo | Ziel |
 | --- | --- |
@@ -31,6 +38,12 @@ zsh-Plugins, gh) und verlinkt:
 | `ghostty/config` | `~/.config/ghostty/config` |
 
 Was vorher dort lag, landet in `~/.dotfiles-backup/<zeitstempel>/`. Mehrfaches Ausführen
-ist unschädlich. `DRY_RUN=1 ./install.sh` zeigt nur an, `--no-brew` überspringt die Pakete.
+ist unschädlich. `DRY_RUN=1 ./install.sh` zeigt nur an, `--no-brew` überspringt Schritt 1–4.
+
+Die Git-Config setzt moderne Defaults, die zu Agenten-Workflows mit vielen Branches passen:
+`push.autoSetupRemote`, `fetch.prune`, `rebase.autoStash`, `rerere`, `zdiff3`-Konflikte,
+Histogram-Diffs und delta als Pager.
+
+Später aktuell halten: `vp upgrade && vp env default lts && vp update -g && brew upgrade`.
 
 Rechnerspezifisches gehört in `~/.zshrc.local` (wird geladen, falls vorhanden, und ist nicht im Repo).
